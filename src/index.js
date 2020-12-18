@@ -19,26 +19,43 @@ bot.loadPlugin(armorManager);
 bot.loadPlugin(pathfinder);
 bot.loadPlugin(autoeat);
 
+function logInventory() {
+  console.log('\nINVENTORY:');
+  bot.inventory.items().forEach(item => {
+    console.log(`${item.displayName} x${item.count}`);
+  });
+  console.log('\n');
+}
+
 bot.on('spawn', () => {
   const movements = new Movements(bot, require('minecraft-data')(bot.version));
   movements.scafoldingBlocks = [];
   bot.pathfinder.setMovements(movements);
 
+  logInventory();
+
   bot.autoEat.options = {
     priority: "foodPoints",
     startAt: 16,
-    bannedFood: ["rotten_flesh"],
+    bannedFood: ["golden_apple", "enchanted_golden_apple", "rotten_flesh"],
   }
+
   equipSword();
+});
+
+// DEATH
+bot.on('death', () => {
+  console.log("Died.");
 });
 
 // VARIABLES
 let guardPos = null;
+let goingHome = false;
 let home = null;
 
-// ITEM COLLECTION
+// EQUIP SWORD & SHIELD
 
-bot.on('playerCollect', (collector, itemDrop) => {
+bot.on('playerCollect', (collector, collected) => {
   if (collector !== bot.entity) return;
 
   setTimeout(() => {
@@ -115,6 +132,7 @@ bot.on('whisper', (username, message) => {
           say("Out of range.");
           return;
         }
+        stopGuarding();
         bot.pathfinder.setGoal(new goals.GoalBlock(player.entity.position.x, player.entity.position.y, player.entity.position.z));
         break;
       }
@@ -125,8 +143,13 @@ bot.on('whisper', (username, message) => {
           say("Out of range.");
           return;
         }
+        stopGuarding();
         bot.pathfinder.setGoal(new goals.GoalFollow(player.entity, 2), true);
         break;
+      }
+
+      case "inventory": {
+        logInventory();
       }
 
       case "stop": {
@@ -198,10 +221,28 @@ function goHome() {
   }
 }
 
-let goingHome = false;
+let healing = false;
 
 bot.on('health', () => {
-  if (bot.health < 4) {
+  if (bot.health <= 6 && bot.health > 4 && !healing) {
+
+    const goldenApple = bot.inventory.items().find(item => item.name == 'golden_apple');
+    if (goldenApple) {
+      healing = true;
+      bot.autoEat.disable()
+      bot.equip(goldenApple, 'hand');
+      bot.consume((error) => {
+        if (error) {
+          console.log(error);
+        } else {
+          equipSword();
+        }
+        bot.autoEat.enable()
+        healing = false;
+      })
+    }
+  }
+  else if (bot.health <= 4 && !healing) {
     if (!goingHome) {
       goingHome = true;
       say("Low health, returning home.");
