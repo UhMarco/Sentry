@@ -224,8 +224,7 @@ function goHome() {
 let healing = false;
 
 bot.on('health', () => {
-  if (bot.health <= 6 && bot.health > 4 && !healing) {
-
+  if (bot.health <= 7 && bot.health > 5 && !healing) {
     const goldenApple = bot.inventory.items().find(item => item.name == 'golden_apple');
     if (goldenApple) {
       healing = true;
@@ -242,8 +241,23 @@ bot.on('health', () => {
       })
     }
   }
-  else if (bot.health <= 4 && !healing) {
-    if (!goingHome) {
+  else if (bot.health <= 5 && !healing) {
+    const enchantedGoldenApple = bot.inventory.items().find(item => item.name == 'enchanted_golden_apple');
+    if (enchantedGoldenApple) {
+      healing = true;
+      bot.autoEat.disable()
+      bot.equip(enchantedGoldenApple, 'hand');
+      bot.consume((error) => {
+        if (error) {
+          console.log(error);
+        } else {
+          equipSword();
+        }
+        bot.autoEat.enable()
+        healing = false;
+      })
+    }
+    else if (!goingHome) {
       goingHome = true;
       say("Low health, returning home.");
       goHome();
